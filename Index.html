@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WD Image Tagger</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #1a73e8;
+            --primary-color-dark: #1558b0;
+            --secondary-color: #28a745;
+            --secondary-color-dark: #1e7e34;
+            --text-color: #333;
+            --text-color-light: #5f6368;
+            --background-color: #f0f2f5;
+            --surface-color: white;
+            --border-color: #dadce0;
+            --border-color-light: #e0e0e0;
+            --input-background: #f8f9fa;
+            --disabled-color: #e0e0e0;
+            --error-color: #d32f2f;
+            --success-color: green;
+            --warning-color: orange;
+            --progress-bar-fill-color: #1a73e8;
+            --progress-bar-background-color: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Roboto', 'Noto Sans SC', sans-serif;
+            margin: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .app-container {
+            background-color: var(--surface-color);
+            padding: 35px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 900px;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 35px;
+            font-weight: 500;
+        }
+
+        .input-group {
+            margin-bottom: 22px;
+        }
+        .input-row {
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+        }
+        .input-row .input-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-color-light);
+        }
+
+        input[type="file"],
+        input[type="number"],
+        input[type="text"],
+        select,
+        button {
+            width: 100%;
+            padding: 12px 15px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            box-sizing: border-box;
+            font-size: 1rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        input[type="file"],
+        input[type="number"],
+        input[type="text"],
+        select {
+            background-color: var(--surface-color);
+        }
+        input[type="number"]:focus,
+        input[type="text"]:focus,
+        select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+            outline: none;
+        }
+
+        input[type="file"] {
+            cursor: pointer;
+            background-color: var(--input-background);
+        }
+        input[type="file"]::file-selector-button {
+            padding: 8px 15px;
+            border: none;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 12px;
+            transition: background-color 0.2s ease;
+        }
+        input[type="file"]:hover::file-selector-button {
+            background-color: var(--primary-color-dark);
+        }
+
+        .file-info {
+            font-size: 0.85em;
+            color: var(--text-color-light);
+            margin-top: 6px;
+            display: block;
+        }
+        .loaded { color: var(--success-color); font-weight: bold; }
+        .not-loaded { color: var(--warning-color); }
+
+        hr.section-divider {
+            border: 0;
+            height: 1px;
+            background-color: var(--border-color-light);
+            margin: 35px 0;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        button#runButton, button#saveAllButton {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        button#saveAllButton {
+            background-color: var(--secondary-color);
+            display: none; 
+        }
+
+        button#runButton:hover, button#saveAllButton:hover {
+            background-color: var(--primary-color-dark);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        button#saveAllButton:hover {
+            background-color: var(--secondary-color-dark);
+        }
+        button#runButton:disabled, button#saveAllButton:disabled {
+            background-color: var(--disabled-color);
+            color: #999;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        button:active {
+            transform: translateY(1px);
+        }
+
+
+        .status-bar {
+            margin-top: 30px;
+            padding: 12px 15px;
+            background-color: #e8f0fe;
+            border-left: 4px solid var(--primary-color);
+            color: #1c4a7d;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+        }
+        .status-bar .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(26, 115, 232, 0.3);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 12px;
+            display: none;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .progress-bar-area {
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+        .progress-bar-label {
+            font-size: 0.9em;
+            color: var(--text-color-light);
+            text-align: right;
+            margin-bottom: 5px;
+        }
+        .progress-bar-background {
+            width: 100%;
+            height: 10px;
+            background-color: var(--progress-bar-background-color);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            width: 0%;
+            height: 100%;
+            background-color: var(--progress-bar-fill-color);
+            border-radius: 5px;
+            transition: width 0.3s ease-out;
+        }
+
+
+        #results-container {
+            margin-top: 35px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+        }
+
+        .image-result-card {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color-light);
+            border-radius: 8px;
+            padding: 18px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: box-shadow 0.2s ease;
+        }
+        .image-result-card:hover {
+            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+        }
+
+        .image-result-card img {
+            width: 100%;
+            height: 180px;
+            object-fit: contain;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            background-color: #eee;
+        }
+        .image-result-card .filename {
+            font-weight: 500;
+            font-size: 1.05em;
+            margin-bottom: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-color);
+        }
+
+        .tags-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.85em;
+            margin-bottom: 15px;
+        }
+
+        .tag-pill {
+            background-color: #e8f0fe;
+            color: #1967d2;
+            padding: 5px 12px;
+            border-radius: 16px;
+            font-size: 0.8em;
+            white-space: nowrap;
+        }
+        .tag-pill .score {
+            font-size: 0.9em;
+            color: var(--text-color-light);
+            margin-left: 5px;
+        }
+
+        .copy-button {
+            background-color: transparent;
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            padding: 8px 15px;
+            font-size: 0.85em;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: auto;
+            align-self: flex-start;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+        .copy-button:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .input-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        .input-group label[for="saveTxtFile"] {
+            display: inline-block;
+            font-weight: normal;
+            vertical-align: middle;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <h1>WD Image Tagger</h1>
+
+        <div class="input-row">
+            <div class="input-group">
+                <label for="modelFile">ONNX 模型 (.onnx):</label>
+                <input type="file" id="modelFile" accept=".onnx">
+                <span class="file-info" id="modelFileInfo">未选择模型</span>
+            </div>
+            <div class="input-group">
+                <label for="tagsFile">标签 CSV 文件 (.csv):</label>
+                <input type="file" id="tagsFile" accept=".csv">
+                <span class="file-info" id="tagsFileInfo">未选择标签文件</span>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label for="modelInputSize">模型输入尺寸 (像素):</label>
+            <input type="number" id="modelInputSize" value="448" placeholder="例如：448">
+            <span class="file-info">请确保此尺寸与所选模型期望的尺寸一致。</span>
+        </div>
+
+        <div class="input-row">
+            <div class="input-group">
+                <label for="threshold">通用标签阈值:</label>
+                <input type="number" id="threshold" value="0.35" step="0.01" min="0" max="1">
+            </div>
+            <div class="input-group">
+                <label for="charThreshold">角色标签阈值:</label>
+                <input type="number" id="charThreshold" value="0.85" step="0.01" min="0" max="1">
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <div class="input-group">
+            <label for="triggerWord">自定义触发词/前缀/后缀 (可选):</label>
+            <input type="text" id="triggerWord" placeholder="例如：masterpiece, best quality">
+        </div>
+        <div class="input-group">
+            <label for="triggerPosition">触发词位置:</label>
+            <select id="triggerPosition">
+                <option value="none">不添加</option>
+                <option value="prefix">添加到开头 (加逗号)</option>
+                <option value="suffix">添加到结尾 (加逗号)</option>
+                <option value="prefix_nocomma">添加到开头 (不加逗号)</option>
+                <option value="suffix_nocomma">添加到结尾 (不加逗号)</option>
+            </select>
+        </div>
+        <div class="input-group">
+             <input type="checkbox" id="saveTxtFile" checked>
+             <label for="saveTxtFile">文件夹处理完成后自动下载标签 (ZIP)</label>
+        </div>
+
+        <hr class="section-divider">
+
+        <div class="input-group">
+            <label for="imageFiles">选择图像文件:</label>
+            <input type="file" id="imageFiles" accept="image/*" multiple>
+            <span class="file-info" id="imageFilesInfo">未选择图像</span>
+        </div>
+
+        <div class="input-group">
+            <label for="imageFolder">或选择图像文件夹:</label>
+            <input type="file" id="imageFolder" webkitdirectory directory>
+            <span class="file-info" id="imageFolderInfo">未选择文件夹</span>
+        </div>
+
+        <div class="button-container">
+            <button id="runButton" onclick="runTagging()" disabled>请先加载模型和标签</button>
+            <button id="saveAllButton" onclick="downloadAllTagsAsZip()" disabled>下载所有标签 (ZIP)</button>
+        </div>
+
+        <div class="status-bar">
+            <div class="spinner" id="loadingSpinner"></div>
+            <span id="statusText">准备就绪。请确保浏览器已启用 WebGPU。</span>
+        </div>
+        <div class="progress-bar-area" id="progressArea" style="display: none;">
+            <div class="progress-bar-label" id="progressLabel">0%</div>
+            <div class="progress-bar-background">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+        </div>
+
+        <div id="results-container">
+            <!-- 结果将在此处填充 -->
+        </div>
+    </div>
+
+    <script>
+        let ortSession = null;
+        let allTags = [];
+        let modelInputName = '';
+        let allProcessedResults = [];
+
+        const modelFileInput = document.getElementById('modelFile');
+        const tagsFileInput = document.getElementById('tagsFile');
+        const imageFilesInput = document.getElementById('imageFiles');
+        const imageFolderInput = document.getElementById('imageFolder');
+        const runButton = document.getElementById('runButton');
+        const saveAllButton = document.getElementById('saveAllButton');
+        const modelFileInfo = document.getElementById('modelFileInfo');
+        const tagsFileInfo = document.getElementById('tagsFileInfo');
+        const imageFilesInfo = document.getElementById('imageFilesInfo');
+        const imageFolderInfo = document.getElementById('imageFolderInfo');
+        const modelInputSizeInput = document.getElementById('modelInputSize');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const statusText = document.getElementById('statusText');
+        const triggerWordInput = document.getElementById('triggerWord');
+        const triggerPositionSelect = document.getElementById('triggerPosition');
+        const saveTxtCheckbox = document.getElementById('saveTxtFile');
+
+        const progressArea = document.getElementById('progressArea');
+        const progressLabel = document.getElementById('progressLabel');
+        const progressBarFill = document.getElementById('progressBarFill');
+
+
+        async function initOrt() {
+            try {
+                updateStatus("正在初始化 ONNX Runtime Web...", true);
+                ort.env.wasm.numThreads = navigator.hardwareConcurrency || 4;
+                if (!navigator.gpu) {
+                    updateStatus("WebGPU 不可用。将回退到 WASM (速度较慢)。", false);
+                } else {
+                    ort.env.executionProviders = ['webgpu', 'wasm'];
+                    updateStatus("ONNX Runtime Web 初始化完成。如果可用，将使用 WebGPU。", false);
+                }
+            } catch (e) {
+                updateStatus(`初始化 ONNX Runtime 失败: ${e.message}`, false);
+                console.error(e);
+                return false;
+            }
+            return true;
+        }
+        initOrt();
+
+        function checkRunButtonState() {
+            if (ortSession && allTags.length > 0) {
+                runButton.disabled = false;
+                runButton.textContent = '开始打标';
+            } else {
+                runButton.disabled = true;
+                let msg = "请先加载";
+                if (!ortSession) msg += "模型";
+                if (!ortSession && allTags.length === 0) msg += "和";
+                if (allTags.length === 0) msg += "标签";
+                runButton.textContent = msg;
+            }
+            
+            const hasValidResultsToSave = allProcessedResults.some(r => r.tagsString && !r.tagsString.startsWith("错误:"));
+            saveAllButton.disabled = !hasValidResultsToSave;
+            if (hasValidResultsToSave) {
+                 saveAllButton.style.display = 'inline-block';
+            } else {
+                 saveAllButton.style.display = 'none';
+            }
+        }
+
+
+        modelFileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                modelFileInfo.textContent = '未选择模型';
+                modelFileInfo.className = 'file-info not-loaded';
+                ortSession = null;
+                checkRunButtonState();
+                return;
+            }
+            updateStatus(`正在加载模型: ${file.name}...`, true);
+            modelFileInfo.textContent = `已选择: ${file.name}`;
+            modelFileInfo.className = 'file-info';
+            try {
+                const buffer = await file.arrayBuffer();
+                ortSession = await ort.InferenceSession.create(buffer);
+                modelInputName = ortSession.inputNames[0];
+                updateStatus(`模型 "${file.name}" 已加载。请确保模型输入尺寸设置正确。输入名: ${modelInputName}`, false);
+                modelFileInfo.classList.add('loaded');
+            } catch (e) {
+                updateStatus(`加载模型失败: ${e.message}`, false);
+                modelFileInfo.classList.add('not-loaded');
+                console.error(e);
+                ortSession = null;
+            }
+            checkRunButtonState();
+        });
+
+        tagsFileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                tagsFileInfo.textContent = '未选择标签文件';
+                tagsFileInfo.className = 'file-info not-loaded';
+                allTags = [];
+                checkRunButtonState();
+                return;
+            }
+            updateStatus(`正在加载标签: ${file.name}...`, true);
+            tagsFileInfo.textContent = `已选择: ${file.name}`;
+            tagsFileInfo.className = 'file-info';
+            try {
+                const text = await file.text();
+                const lines = text.split(/\r?\n/);
+                allTags = [];
+                for (let i = 1; i < lines.length; i++) { 
+                    if (lines[i].trim() === '') continue;
+                    const parts = lines[i].split(',');
+                    if (parts.length >= 3) { 
+                         allTags.push({
+                            name: parts[1].replace(/_/g, ' '), 
+                            category: parseInt(parts[2])      
+                        });
+                    }
+                }
+                updateStatus(`标签加载完成: ${allTags.length} 个标签。`, false);
+                tagsFileInfo.classList.add('loaded');
+            } catch (e) {
+                updateStatus(`加载标签失败: ${e.message}`, false);
+                tagsFileInfo.classList.add('not-loaded');
+                console.error(e);
+                allTags = [];
+            }
+            checkRunButtonState();
+        });
+
+        function resetProgress() {
+            progressArea.style.display = 'none';
+            progressBarFill.style.width = '0%';
+            progressLabel.textContent = '0%';
+        }
+
+        imageFilesInput.addEventListener('change', (event) => {
+            if (event.target.files.length > 0) {
+                imageFilesInfo.textContent = `已选择 ${event.target.files.length} 个图像文件。`;
+                imageFilesInfo.className = 'file-info loaded';
+                imageFolderInput.value = ''; 
+                imageFolderInfo.textContent = '未选择文件夹';
+                imageFolderInfo.className = 'file-info';
+                allProcessedResults = []; 
+                resetProgress();
+                checkRunButtonState();
+            } else {
+                imageFilesInfo.textContent = '未选择图像';
+                imageFilesInfo.className = 'file-info';
+            }
+        });
+        imageFolderInput.addEventListener('change', (event) => {
+             if (event.target.files.length > 0) {
+                imageFolderInfo.textContent = `已选择文件夹，包含 ${event.target.files.length} 个项目。`;
+                imageFolderInfo.className = 'file-info loaded';
+                imageFilesInput.value = ''; 
+                imageFilesInfo.textContent = '未选择图像';
+                imageFilesInfo.className = 'file-info';
+                allProcessedResults = []; 
+                resetProgress();
+                checkRunButtonState();
+            } else {
+                imageFolderInfo.textContent = '未选择文件夹';
+                imageFolderInfo.className = 'file-info';
+            }
+        });
+
+        function updateStatus(message, isLoading = false) {
+            statusText.textContent = message;
+            if (isLoading) {
+                loadingSpinner.style.display = 'inline-block';
+                runButton.disabled = true;
+                saveAllButton.disabled = true; 
+            } else {
+                loadingSpinner.style.display = 'none';
+                checkRunButtonState(); 
+            }
+            console.log(message);
+        }
+        
+        function updateProgress(current, total) {
+            const percentage = Math.round((current / total) * 100);
+            progressBarFill.style.width = percentage + '%';
+            progressLabel.textContent = percentage + '%';
+        }
+
+
+        async function preprocessImage(imageFile, targetSize) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        let ratio = targetSize / Math.max(img.width, img.height);
+                        let newWidth = Math.round(img.width * ratio);
+                        let newHeight = Math.round(img.height * ratio);
+                        canvas.width = targetSize;
+                        canvas.height = targetSize;
+                        ctx.fillStyle = "white"; 
+                        ctx.fillRect(0, 0, targetSize, targetSize);
+                        const offsetX = (targetSize - newWidth) / 2;
+                        const offsetY = (targetSize - newHeight) / 2;
+                        ctx.drawImage(img, offsetX, offsetY, newWidth, newHeight);
+                        const imageData = ctx.getImageData(0, 0, targetSize, targetSize);
+                        const data = imageData.data;
+                        const float32Data = new Float32Array(targetSize * targetSize * 3);
+                        let j = 0;
+                        for (let i = 0; i < data.length; i += 4) {
+                            float32Data[j++] = data[i + 2]; // B
+                            float32Data[j++] = data[i + 1]; // G
+                            float32Data[j++] = data[i + 0]; // R
+                        }
+                        const tensor = new ort.Tensor('float32', float32Data, [1, targetSize, targetSize, 3]);
+                        resolve({ tensor, dataUrl: event.target.result, originalName: imageFile.name });
+                    };
+                    img.onerror = (err) => reject(new Error(`图像加载失败: ${imageFile.name} - ${err.type || 'Unknown error'}`));
+                    img.src = event.target.result;
+                };
+                reader.onerror = (err) => reject(new Error(`文件读取失败: ${imageFile.name} - ${err.type || 'Unknown error'}`));
+                reader.readAsDataURL(imageFile);
+            });
+        }
+
+        let copyStatusTimeout;
+        function copyToClipboard(text) {
+            clearTimeout(copyStatusTimeout); // Clear any existing timeout
+            navigator.clipboard.writeText(text).then(() => {
+                const originalStatus = statusText.textContent; // Store current status
+                updateStatus("标签已复制到剪贴板！", false);
+                copyStatusTimeout = setTimeout(() => {
+                    // Only revert if the status hasn't been changed by a longer process (like main tagging)
+                    if (statusText.textContent === "标签已复制到剪贴板！") {
+                         updateStatus(originalStatus, false); // Revert to original status before copy
+                    }
+                }, 2500);
+            }).catch(err => {
+                updateStatus("复制标签失败。", false);
+                console.error('复制失败: ', err);
+            });
+        }
+
+        function applyTriggerWord(tagsArray, trigger, position) {
+            if (!trigger || position === 'none') {
+                return tagsArray.join(', ');
+            }
+            let tagsString = tagsArray.join(', ');
+            switch (position) {
+                case 'prefix':
+                    return tagsString ? `${trigger}, ${tagsString}` : trigger;
+                case 'suffix':
+                    return tagsString ? `${tagsString}, ${trigger}` : trigger;
+                case 'prefix_nocomma':
+                     return `${trigger}${tagsString ? ' ' + tagsString : ''}`;
+                case 'suffix_nocomma':
+                    return `${tagsString ? tagsString + ' ' : ''}${trigger}`;
+            }
+            return tagsString;
+        }
+
+        async function runTagging() {
+            if (!ortSession || allTags.length === 0) {
+                alert("请先加载模型和标签文件。");
+                return;
+            }
+
+            let filesToProcess = [];
+            let isFolderProcessing = false;
+            if (imageFilesInput.files.length > 0) {
+                filesToProcess = Array.from(imageFilesInput.files);
+            } else if (imageFolderInput.files.length > 0) {
+                filesToProcess = Array.from(imageFolderInput.files).filter(f => f.type && f.type.startsWith('image/'));
+                isFolderProcessing = true;
+            }
+
+            if (filesToProcess.length === 0) {
+                alert("请选择要打标的图像文件或包含图像的文件夹。");
+                return;
+            }
+
+            const resultsContainer = document.getElementById('results-container');
+            resultsContainer.innerHTML = '';
+            allProcessedResults = []; 
+            resetProgress();
+            progressArea.style.display = 'block';
+
+
+            const modelInputSize = parseInt(modelInputSizeInput.value);
+            if (isNaN(modelInputSize) || modelInputSize <= 0) {
+                alert("模型输入尺寸无效，请输入一个正整数。");
+                progressArea.style.display = 'none'; // Hide progress bar on early exit
+                return;
+            }
+
+            const generalThreshold = parseFloat(document.getElementById('threshold').value);
+            const charThreshold = parseFloat(document.getElementById('charThreshold').value);
+            const triggerWord = triggerWordInput.value.trim();
+            const triggerPosition = triggerPositionSelect.value;
+
+            updateStatus(`开始处理 ${filesToProcess.length} 张图像...`, true);
+
+            for (let i = 0; i < filesToProcess.length; i++) {
+                const file = filesToProcess[i];
+                // Update status and progress before processing the file
+                updateStatus(`正在处理 ${i + 1}/${filesToProcess.length}: ${file.name}...`, true);
+                updateProgress(i + 1, filesToProcess.length);
+
+                try {
+                    const { tensor, dataUrl, originalName } = await preprocessImage(file, modelInputSize);
+                    const feeds = { [modelInputName]: tensor };
+                    const results = await ortSession.run(feeds);
+                    const outputTensor = results[ortSession.outputNames[0]];
+                    const probabilities = outputTensor.data;
+
+                    let extractedTags = [];
+                    for (let j = 0; j < probabilities.length; j++) {
+                        if (!allTags[j]) continue; 
+                        const tagName = allTags[j].name;
+                        const tagCategory = allTags[j].category;
+                        const score = probabilities[j];
+                        let currentThreshold = (tagCategory === 4) ? charThreshold : generalThreshold;
+                        if (score > currentThreshold) {
+                            extractedTags.push({ name: tagName, score: parseFloat(score.toFixed(3)) });
+                        }
+                    }
+                    extractedTags.sort((a, b) => b.score - a.score);
+
+                    const finalTagsArray = extractedTags.map(t => t.name);
+                    const finalTagsString = applyTriggerWord(finalTagsArray, triggerWord, triggerPosition);
+                    
+                    const baseName = originalName.substring(0, originalName.lastIndexOf('.')) || originalName;
+                    allProcessedResults.push({ originalName, baseName, tagsString: finalTagsString });
+
+                    const card = document.createElement('div');
+                    card.className = 'image-result-card';
+                    const imgPreview = document.createElement('img');
+                    imgPreview.src = dataUrl;
+                    imgPreview.alt = originalName;
+                    card.appendChild(imgPreview);
+                    const fileNameP = document.createElement('p');
+                    fileNameP.className = 'filename';
+                    fileNameP.textContent = originalName;
+                    card.appendChild(fileNameP);
+
+                    const tagsListDiv = document.createElement('div');
+                    tagsListDiv.className = 'tags-list';
+                    (finalTagsString.split(', ')).forEach(tagText => {
+                        if(tagText.trim()){
+                            const tagPill = document.createElement('span');
+                            tagPill.className = 'tag-pill';
+                            const originalTag = extractedTags.find(et => et.name === tagText.trim());
+                            if (originalTag) {
+                                tagPill.textContent = originalTag.name;
+                                const scoreSpan = document.createElement('span');
+                                scoreSpan.className = 'score';
+                                scoreSpan.textContent = `(${originalTag.score})`;
+                                tagPill.appendChild(scoreSpan);
+                            } else {
+                                tagPill.textContent = tagText.trim();
+                            }
+                            tagsListDiv.appendChild(tagPill);
+                        }
+                    });
+                    card.appendChild(tagsListDiv);
+
+                    if (finalTagsString) {
+                        const copyBtn = document.createElement('button');
+                        copyBtn.className = 'copy-button';
+                        copyBtn.textContent = '复制标签';
+                        copyBtn.onclick = () => copyToClipboard(finalTagsString);
+                        card.appendChild(copyBtn);
+                    }
+                    resultsContainer.appendChild(card);
+
+                } catch (e) {
+                    const errorMessage = e.message || '未知错误';
+                    console.error(`处理 ${file.name} 失败:`, e);
+                    const errorCard = document.createElement('div');
+                    errorCard.className = 'image-result-card';
+                    errorCard.style.border = '2px solid var(--error-color)';
+                    errorCard.innerHTML = `<p class="filename" style="color:var(--error-color);">处理失败: ${file.name}</p><p style="font-size:0.9em; color: var(--error-color);">${errorMessage.replace(/\n/g, '<br>')}</p>`;
+                    resultsContainer.appendChild(errorCard);
+                    
+                    const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                    allProcessedResults.push({ originalName: file.name, baseName, tagsString: `错误: ${errorMessage}` });
+                     // Still update status to reflect this file is "done" for progress bar
+                    updateStatus(`处理 ${file.name} 失败: ${errorMessage}`, true); // Keep spinner for overall process
+                }
+            }
+            updateProgress(filesToProcess.length, filesToProcess.length); // Ensure 100%
+            updateStatus(`已完成处理 ${filesToProcess.length} 张图像。`, false);
+            checkRunButtonState();
+
+            const hasValidResults = allProcessedResults.some(r => r.tagsString && !r.tagsString.startsWith("错误:"));
+            if (isFolderProcessing && saveTxtCheckbox.checked && hasValidResults) {
+                await downloadAllTagsAsZip();
+            }
+        }
+
+        async function downloadAllTagsAsZip() {
+            const validResults = allProcessedResults.filter(r => r.tagsString && !r.tagsString.startsWith("错误:"));
+            if (validResults.length === 0) {
+                alert("没有可成功处理并保存的标签结果。");
+                return;
+            }
+
+            updateStatus("正在准备ZIP文件...", true);
+
+            const zip = new JSZip();
+            let zipFileNameBase = "tagged_images"; 
+
+            if (imageFolderInput.files.length > 0 && imageFolderInput.files[0].webkitRelativePath) {
+                const firstFilePath = imageFolderInput.files[0].webkitRelativePath;
+                const detectedFolderName = firstFilePath.substring(0, firstFilePath.indexOf('/'));
+                if (detectedFolderName) {
+                    zipFileNameBase = detectedFolderName.replace(/[^a-z0-9_.-]/gi, '_').replace(/_{2,}/g, '_');
+                }
+            } else if (imageFilesInput.files.length > 0 && imageFilesInput.files.length === 1 && validResults.length === 1) {
+                zipFileNameBase = validResults[0].baseName.replace(/[^a-z0-9_.-]/gi, '_').replace(/_{2,}/g, '_');
+            }
+
+
+            validResults.forEach(result => {
+                zip.file(`${result.baseName}.txt`, result.tagsString);
+            });
+
+            try {
+                const content = await zip.generateAsync({ type: "blob" });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(content);
+                a.download = `${zipFileNameBase}_tags.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(a.href);
+                updateStatus("标签ZIP文件已成功下载。", false);
+            } catch (e) {
+                updateStatus(`创建ZIP文件失败: ${e.message}`, false);
+                console.error("ZIP generation failed:", e);
+            }
+        }
+        checkRunButtonState(); 
+    </script>
+</body>
+</html>
